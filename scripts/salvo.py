@@ -162,13 +162,13 @@ class Salvo(object):
         # setup the executor parameters based on the cluster location
         if executor.cluster == "slurm":
             executor.update_parameters(
-                mem_gb=16,
-                cpus_per_task=12,
+                mem_gb=8,
+                cpus_per_task=4,
                 timeout_min=1000,
                 tasks_per_node=1,
                 nodes=1,
                 slurm_partition="long",
-                gres="gpu:rtx8000:1",
+                #gres="gpu:rtx8000:1",
             )
         return executor
 
