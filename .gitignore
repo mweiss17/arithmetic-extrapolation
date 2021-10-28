@@ -1,3 +1,7 @@
 experiments/
 notebooks/
 results/
+__pycache__/
+.idea/
+.ipynb*
+arithmetic_extrapolation.egg*
