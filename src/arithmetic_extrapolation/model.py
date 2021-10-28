@@ -40,6 +40,14 @@ class LSTM(nn.Module):
             padding_idx=3
         )
 
+    def init_hidden(self):
+        h_0 = torch.zeros((1, self.batch_size, self.hidden_size))
+        c_0 = torch.zeros((1, self.batch_size, self.hidden_size))
+        h_0 = h_0.to(self.device)
+        c_0 = c_0.to(self.device)
+        h_0 = Variable(h_0)
+        c_0 = Variable(c_0)
+        return (h_0, c_0)
 
     def forward_save(self, x):
         self.hidden = self.init_hidden()
