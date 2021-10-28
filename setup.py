@@ -22,6 +22,7 @@ setuptools.setup(
     python_requires=">=3.7",
     install_requires=[
         'torch==1.9.1',
+        'rich', 
         'numpy',
         'google-cloud',
         'wandb',
