@@ -74,8 +74,8 @@ class Trainer(BaseExperiment, WandBMixin, IOMixin):
 
     def validate(self):
         self.model.eval()
-        train_result_dict = get_acc(self.trainloader, self.model, split="Train")
-        val_result_dict = get_acc(self.valloader, self.model, split="Valid")
+        train_result_dict = get_acc(self.trainloader, self.model, use_ln=self.get("use_ln"), split="Train")
+        val_result_dict = get_acc(self.valloader, self.model, use_ln=self.get("use_ln"), split="Valid")
         self.model.train()
         return train_result_dict, val_result_dict
 

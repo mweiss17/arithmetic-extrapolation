@@ -228,6 +228,10 @@ class LayerNormLSTM(nn.Module):
             hy = torch.stack(ht[-1])
             cy = torch.stack(ct[-1])
 
+        # (batch_size, seq_len, nb_lstm_units) -> (batch_size * seq_len, nb_lstm_units)
+        y = y.contiguous()
+        y = y.view(-1, y.shape[2])
+
         # run through linear layer
         y = self.linear(y)
 

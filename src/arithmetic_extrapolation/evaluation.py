@@ -1,10 +1,15 @@
 import torch
 import numpy as np
 
-def get_acc(dataloader, model, split):
+def get_acc(dataloader, model, use_ln, split):
     char_accs = []
     for xx_pad, targets, x_lens, _ in dataloader:
-        preds = model(xx_pad, x_lens)
+        if use_ln:
+            hidden = None
+            breakpoint()
+            preds, hidden = model(xx_pad.unsqueeze(2).float(), hidden)
+        else:
+            preds = model(xx_pad, x_lens)
         loss = model.compute_loss(preds, targets)
         for i in range(preds.shape[0]):
             pred = preds[i, :x_lens[i]]
