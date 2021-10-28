@@ -7,7 +7,7 @@ import random
 import numpy as np
 from speedrun import BaseExperiment, WandBMixin, IOMixin
 from arithmetic_extrapolation.utils import get_model_path, write_results, get_dataset, get_exp_dir
-from arithmetic_extrapolation.model import LSTM
+from arithmetic_extrapolation.model import LSTM, LayerNormLSTM
 from arithmetic_extrapolation.evaluation import get_acc
 
 class Trainer(BaseExperiment, WandBMixin, IOMixin):
@@ -32,8 +32,12 @@ class Trainer(BaseExperiment, WandBMixin, IOMixin):
         self.trainloader, self.valloader, self.testloader = get_dataset(self.get("dataset"), self.get("batch_size"))
 
         # initialize model
-        self.model = LSTM(self.get("input_size"), self.get("hidden_size"), self.get("batch_size"),
-                          len(self.trainloader.dataset.vocab), device, bias=self.get("bias"))
+        if self.get("use_ln"):
+            self.model = LayerNormLSTM(self.get("input_size"), self.get("hidden_size"), vocab_size=len(self.trainloader.dataset.vocab), bias=self.get("bias"))
+        else:
+            self.model = LSTM(self.get("input_size"), self.get("hidden_size"), self.get("batch_size"),
+                              len(self.trainloader.dataset.vocab), device, bias=self.get("bias"), use_embedding=self.get("use_embedding"),
+                              set_linear_bias=self.get("set_linear_bias"), linear_normal=self.get("linear_normal"), linear_uniform=self.get("linear_uniform"), use_ln=self.get("use_ln"), ln_preact=self.get("ln_preact"))
         self.model = self.model.to(device)
 
         # initialize optimizer
@@ -54,7 +58,11 @@ class Trainer(BaseExperiment, WandBMixin, IOMixin):
     def train(self):
         for x, y, x_lens, y_lens in self.trainloader:
             self.model.zero_grad()
-            y_hat = self.model(x, x_lens)
+            if self.get("use_ln"):
+                hidden = None
+                y_hat, hidden = self.model(x.unsqueeze(2).float(), hidden)
+            else:
+                y_hat = self.model(x, x_lens)
             loss = self.model.compute_loss(y_hat, y)
             loss.backward()
             self.optimizer.step()
@@ -76,7 +84,7 @@ class Trainer(BaseExperiment, WandBMixin, IOMixin):
             self.train()
 
             if self.validate_now:
-                self.wandb_watch(self.model, criterion=self.model.criterion, log="all")
+                # self.wandb_watch(self.model, criterion=self.model.criterion, log="all")
                 train_result_dict, val_result_dict = self.validate()
                 self.all_results.append((train_result_dict, val_result_dict))
                 self.log()
