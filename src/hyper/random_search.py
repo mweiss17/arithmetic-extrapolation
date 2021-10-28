@@ -1,6 +1,6 @@
 import numpy as np
 from argparse import ArgumentParser
-from arithmetic_extrapolation.hyper import dists
+from hyper import dists
 
 
 def generator(args):
@@ -13,8 +13,8 @@ def generator(args):
     for dist_string in parsed.distributions.split("+"):
         hyper_name, dist_info = dist_string.split("~")
         dist_name, params = dist_info.split("[")
-        dists_to_sample[hyper_name] = dists.get_dist(dist_name, params[:-1])
 
+        dists_to_sample[hyper_name] = dists.get_dist(dist_name, params[:-1])
     for _ in range(parsed.num_runs):
         sampled = {dist_name: dist_fn(*params) for dist_name, (dist_fn, params) in dists_to_sample.items()}
         yield sampled

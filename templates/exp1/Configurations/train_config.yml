@@ -15,3 +15,9 @@ weight_decay: 0.01
 exp_name: exp
 dataset: anbn
 use_wandb: True
+
+use_ln: False
+use_embedding: False
+set_linear_bias: False
+linear_uniform: False
+linear_normal: False

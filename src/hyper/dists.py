@@ -7,8 +7,8 @@ def uniform(bottom, top):
 def log_uniform(bottom, top):
     return np.exp(np.random.uniform(np.log(bottom), np.log(top)))
 
-def discrete_uniform(choices):
-    return np.random.choice(tuple(*choices))
+def discrete_uniform(*choices):
+    return np.random.choice(choices)
 
 def normal(mu, sigma):
     return np.random.normal(mu, sigma)
@@ -19,7 +19,7 @@ def log_normal(mu, sigma):
 def get_dist(dist_name, params):
     # takes a distribution name and a comma seperated list of string arguments and returns dist and python params
     mapping = {
-        "discrete_uniform": discrete_uniform,
+        "discrete": discrete_uniform,
         "uniform": uniform,
         "log_uniform": log_uniform,
         "normal": normal,
