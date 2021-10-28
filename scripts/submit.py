@@ -9,8 +9,8 @@ ex = submitit.AutoExecutor(folder=os.path.join(sys.argv[2], "Logs"))
 # setup the executor parameters based on the cluster location
 if ex.cluster == "slurm":
     ex.update_parameters(
-        mem_gb=16,
-        cpus_per_task=12,
+        mem_gb=8,
+        cpus_per_task=4,
         timeout_min=1000,
         tasks_per_node=1,
         nodes=1,

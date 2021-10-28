@@ -6,7 +6,7 @@ seed: 1
 epochs: 2500
 log_every: 1
 validate_every: 100
-checkpoint_every: 100
+checkpoint_every: 1000
 lr: 0.001
 optimizer_type: adamw
 use_schedule: False
