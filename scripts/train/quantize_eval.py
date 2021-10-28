@@ -7,8 +7,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
-from model import LSTM
-from dataset import anbn, anbnEval
+from arithmetic_extrapolation.model import LSTM
+from arithmetic_extrapolation.dataset import anbn, anbnEval
 
 parser = argparse.ArgumentParser(description='plot an experiment')
 parser.add_argument('--individual_plots', action="store_true")

@@ -5,7 +5,7 @@ import os
 import tqdm
 import matplotlib.pyplot as plt
 from collections import defaultdict
-from utils import get_plot_path, get_result_pkl_path
+from arithmetic_extrapolation.utils import get_plot_path, get_result_pkl_path
 
 parser = argparse.ArgumentParser(description='plot an experiment')
 parser.add_argument('--individual_plots', action="store_true")
@@ -55,6 +55,7 @@ def plot_lines_with_std_per_exp(exp_results, path="", show=False):
                     plot_path = get_plot_path(path, key)
                     plt.savefig(plot_path)
                 plt.clf()
+
 def smooth(y, box_pts):
     box = np.ones(box_pts) / box_pts
     y_smooth = np.convolve(y, box, mode='same')
@@ -79,7 +80,7 @@ def plot_exp_by_key_and_splits(key, splits, path):
         plt.fill_between(xs,  np.clip(yfit_smoothed - dyfit_smoothed, 0., 100.),  np.clip(yfit_smoothed + dyfit_smoothed, 0., 100.),  alpha=0.2)
         axes = plt.gca()
         if "ca" in metric:
-            axes.set_ylim([50., 100.])
+            axes.set_ylim([0., 100.])
         elif "wa" in metric:
             axes.set_ylim([0., 100.])
 
@@ -142,9 +143,10 @@ def group_exps_for_plotting(exp_results):
     return train_output, valid_output
 
 
-base_dir = "results"
+base_dir = "experiments/"
 paths = defaultdict(list)
 for exp_dir in os.listdir(base_dir):
+    breakpoint()
     exp_path = os.path.join(base_dir, exp_dir)
     if exp_dir == "plots":
         continue

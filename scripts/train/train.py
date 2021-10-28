@@ -1,9 +1,29 @@
 import time
+import copy
 import numpy as np
 import torch
-from utils import get_model_path, write_results
-from evaluation import get_acc
+from arithmetic_extrapolation.utils import get_model_path, write_results, write_params
+from arithmetic_extrapolation.evaluation import get_acc
 
+
+def train_epoch_save(dataloader, model, optimizer, scheduler):
+    losses = []
+
+    for x, y, x_lens, y_lens in dataloader:
+        model.zero_grad()
+
+        # if x_lens[0]==50:
+        #     y_hat, cs, hs, params = model.forward_save(x)
+        # else:
+        y_hat = model(x, x_lens)
+
+        loss = model.compute_loss(y_hat, y, x_lens)
+        losses.append(loss.detach().numpy())
+        loss.backward()
+        optimizer.step()
+    if scheduler:
+        scheduler.step()
+    return model, optimizer, scheduler, np.mean(losses) #, cs, hs, params
 
 def train_epoch(dataloader, model, optimizer, scheduler):
     losses = []
@@ -35,16 +55,24 @@ def evaluate_model(all_results, train_dataloader, val_dataloader, model, epoch, 
 def train(model, dirpath, optimizer, scheduler, trainloader, valloader, epochs=1500, eval_e=10):
     all_results = []
     losses = []
+    # allcs = []
+    # allhs = []
+    # allparams = []
     max_valid_perf = 0
     max_train_perf = 0
     start = time.time()
 
     for epoch in range(epochs + 1):
-        model, optimizer, scheduler, loss = train_epoch(trainloader, model, optimizer, scheduler)
+        model, optimizer, scheduler, loss = train_epoch_save(trainloader, model, optimizer, scheduler)
         losses.append(loss)
+        # allcs.append(np.array(cs).copy())
+        # allhs.append(np.array(hs).copy())
+        # allparams.append(copy.deepcopy(params))
+        # write_params(allcs, allhs, allparams, dirpath)
 
         if epoch % eval_e == 0:
             all_results = evaluate_model(all_results, trainloader, valloader, model, epoch, losses, start)
+
             cur_valid_perf = all_results[-1][1]['wa']
             cur_train_perf = all_results[-1][0]['wa']
             write_results(all_results, dirpath)

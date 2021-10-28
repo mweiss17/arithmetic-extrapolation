@@ -1,0 +1,17 @@
+batch_size: 10
+input_size: 1
+hidden_size: 10
+bias: True
+seed: 1
+epochs: 2500
+log_every: 1
+validate_every: 100
+checkpoint_every: 100
+lr: 0.001
+optimizer_type: adamw
+use_schedule: False
+momentum: False
+weight_decay: 0.01
+exp_name: exp
+dataset: anbn
+use_wandb: True
