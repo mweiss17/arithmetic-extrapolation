@@ -1,6 +1,6 @@
 import numpy as np
 from argparse import ArgumentParser
-from jumping_quadrupeds.hyper import dists
+from arithmetic_extrapolation.hyper import dists
 
 
 def generator(args):
