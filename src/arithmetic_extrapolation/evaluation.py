@@ -5,9 +5,7 @@ def get_acc(dataloader, model, use_ln, split):
     char_accs = []
     for xx_pad, targets, x_lens, _ in dataloader:
         if use_ln:
-            hidden = None
-            breakpoint()
-            preds, hidden = model(xx_pad.unsqueeze(2).float(), hidden)
+            preds = model(xx_pad.unsqueeze(2).float())
         else:
             preds = model(xx_pad, x_lens)
         loss = model.compute_loss(preds, targets)

@@ -4,6 +4,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 from arithmetic_extrapolation.model import LSTM
 from arithmetic_extrapolation.dataset import anbn, dyckn, addition
+from torch.nn.utils.rnn import pad_sequence
 
 def get_result_pkl_path(dirpath):
     return os.path.join(dirpath, "result.pkl")
@@ -48,25 +49,37 @@ def get_dataset(name, batch_size):
         train_dataset = anbn(min_n=1, max_n=101)
         val_dataset = anbn(min_n=301, max_n=321)
         test_dataset = anbn(min_n=101, max_n=161)
-        trainloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=LSTM.pad_collate)
-        valloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=LSTM.pad_collate)
-        testloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=LSTM.pad_collate)
+        trainloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate)
+        valloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate)
+        testloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate)
     elif name == "dyckn":
         # create datasets and dataloaders
         train_dataset = dyckn(n=2, max_len=100)
         val_dataset = dyckn(n=2, max_len=200)
         test_dataset = dyckn(n=2, max_len=300)
-        trainloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=LSTM.pad_collate)
-        valloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=LSTM.pad_collate)
-        testloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=LSTM.pad_collate)
+        trainloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate)
+        valloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate)
+        testloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate)
     elif name == "addition":
         train_dataset = addition(min=0, max=99, sample=.1)
         val_dataset = addition(min=0, max=99, sample=.1)
         test_dataset = addition(min=100, max=199, sample=.1)
-        trainloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=LSTM.pad_collate)
-        valloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=LSTM.pad_collate)
-        testloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=LSTM.pad_collate)
+        trainloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate)
+        valloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate)
+        testloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True, collate_fn=pad_collate)
 
     else:
         raise Exception("NotImplemented")
     return trainloader, valloader, testloader
+
+def pad_collate(batch):
+    (xx, yy) = zip(*batch)
+    x_lens = [len(x) for x in xx]
+    y_lens = [len(y) for y in yy]
+    xx_pad = pad_sequence(xx, batch_first=True, padding_value=0)
+    yy_pad = pad_sequence(yy, batch_first=True, padding_value=0)
+    for idx, y_len in enumerate(y_lens):
+        target_pad_idx = 3
+        yy_pad[idx, y_len:max(y_lens), target_pad_idx] = 1
+        xx_pad[idx, y_len:max(y_lens)] = target_pad_idx
+    return xx_pad, yy_pad, x_lens, y_lens

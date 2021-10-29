@@ -33,7 +33,7 @@ class Trainer(BaseExperiment, WandBMixin, IOMixin):
 
         # initialize model
         if self.get("use_ln"):
-            self.model = LayerNormLSTM(self.get("input_size"), self.get("hidden_size"), vocab_size=len(self.trainloader.dataset.vocab), bias=self.get("bias"))
+            self.model = LayerNormLSTM(self.get("input_size"), self.get("hidden_size"), self.get("batch_size"), vocab_size=len(self.trainloader.dataset.vocab), bias=self.get("bias"), linear_normal=self.get("linear_normal"))
         else:
             self.model = LSTM(self.get("input_size"), self.get("hidden_size"), self.get("batch_size"),
                               len(self.trainloader.dataset.vocab), device, bias=self.get("bias"), use_embedding=self.get("use_embedding"),
@@ -59,8 +59,7 @@ class Trainer(BaseExperiment, WandBMixin, IOMixin):
         for x, y, x_lens, y_lens in self.trainloader:
             self.model.zero_grad()
             if self.get("use_ln"):
-                hidden = None
-                y_hat, hidden = self.model(x.unsqueeze(2).float(), hidden)
+                y_hat = self.model(x.unsqueeze(2).float())
             else:
                 y_hat = self.model(x, x_lens)
             loss = self.model.compute_loss(y_hat, y)
@@ -95,8 +94,10 @@ class Trainer(BaseExperiment, WandBMixin, IOMixin):
 
     def log(self):
         print(f"epoch: {self.epoch}, results: {self.all_results[-1]}")
-        self.wandb_log(**self.all_results[-1][0])
-        self.wandb_log(**self.all_results[-1][1])
+        if self.get("use_wandb"):
+            self.wandb_log(**self.all_results[-1][0])
+        
+            self.wandb_log(**self.all_results[-1][1])
         # write_results(self.all_results, os.path.join(self.experiment_directory, "Logs"))
 
     @property

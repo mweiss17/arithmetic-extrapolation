@@ -77,7 +77,7 @@ n_neq_m_successes = []
 for n in range(3, max_n):
     for m in range(curval, 100):
         word = "a" * n + "b" * int(n-m) # sometimes int(n+m)
-        dataloader = DataLoader(anbnEval(word=word), batch_size=1, shuffle=True, collate_fn=LSTM.pad_collate)
+        dataloader = DataLoader(anbnEval(word=word), batch_size=1, shuffle=True, collate_fn=pad_collate)
         word_match = run_model(model, dataloader)
 
         if m == 0:

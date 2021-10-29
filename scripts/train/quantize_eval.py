@@ -69,7 +69,7 @@ n_neq_m_successes = []
 n=200
 
 word = "a" * n + "b" * n
-dataloader = DataLoader(anbnEval(word=word), batch_size=1, shuffle=True, collate_fn=LSTM.pad_collate)
+dataloader = DataLoader(anbnEval(word=word), batch_size=1, shuffle=True, collate_fn=pad_collate)
 x, y, x_lens, y_lens = next(iter(dataloader))
 preds = model(x, x_lens, record_activations=True)
 

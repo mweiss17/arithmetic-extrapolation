@@ -45,7 +45,7 @@ matches = []
 for min_n in range(100, 300):
 # min_n = 150
     test_dataset = anbn(min_n=min_n, max_n=min_n+1, positive_examples_only=True)
-    dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True, collate_fn=LSTM.pad_collate)
+    dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True, collate_fn=pad_collate)
 
     model = LSTM(input_size, hidden_size, 1, len(anbn.vocab), args.device)
     model.load_state_dict(torch.load(model_path))
