@@ -7,7 +7,7 @@ import random
 import numpy as np
 from speedrun import BaseExperiment, WandBMixin, IOMixin
 from arithmetic_extrapolation.utils import get_model_path, write_results, get_dataset, get_exp_dir
-from arithmetic_extrapolation.model import LSTM, LayerNormLSTM
+from arithmetic_extrapolation.model import LSTM, LayerNormLSTM, Transformer
 from arithmetic_extrapolation.evaluation import get_acc
 
 class Trainer(BaseExperiment, WandBMixin, IOMixin):
@@ -34,6 +34,19 @@ class Trainer(BaseExperiment, WandBMixin, IOMixin):
         # initialize model
         if self.get("use_ln"):
             self.model = LayerNormLSTM(self.get("input_size"), self.get("hidden_size"), self.get("batch_size"), vocab_size=len(self.trainloader.dataset.vocab), use_embedding=self.get("use_embedding"), bias=self.get("bias"), linear_normal=self.get("linear_normal"))
+        elif self.get("model") == "transformer":
+            self.model = Transformer(vocab_size=len(self.trainloader.dataset.vocab),
+                                     input_size=self.get("input_size"),
+                                     use_embedding=self.get("use_embedding"),
+                                     nhead=self.get("nhead", 2),
+                                     num_encoder_layers=self.get("num_encoder_layers", 2),
+                                     num_decoder_layers=self.get("num_decoder_layers", 2),
+                                     hidden_size=self.get("hidden_size", 128),
+                                     dropout=self.get("dropout", 0.0),
+                                     activation=self.get("activation", 'relu'),
+                                     norm_first=self.get("norm_first", True),
+                                     linear_normal=self.get("linear_normal", True))
+
         else:
             self.model = LSTM(self.get("input_size"), self.get("hidden_size"), self.get("batch_size"),
                               len(self.trainloader.dataset.vocab), device, bias=self.get("bias"), use_embedding=self.get("use_embedding"),
