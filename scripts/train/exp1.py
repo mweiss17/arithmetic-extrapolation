@@ -33,7 +33,7 @@ class Trainer(BaseExperiment, WandBMixin, IOMixin):
 
         # initialize model
         if self.get("use_ln"):
-            self.model = LayerNormLSTM(self.get("input_size"), self.get("hidden_size"), self.get("batch_size"), vocab_size=len(self.trainloader.dataset.vocab), bias=self.get("bias"), linear_normal=self.get("linear_normal"))
+            self.model = LayerNormLSTM(self.get("input_size"), self.get("hidden_size"), self.get("batch_size"), vocab_size=len(self.trainloader.dataset.vocab), use_embedding=self.get("use_embedding"), bias=self.get("bias"), linear_normal=self.get("linear_normal"))
         else:
             self.model = LSTM(self.get("input_size"), self.get("hidden_size"), self.get("batch_size"),
                               len(self.trainloader.dataset.vocab), device, bias=self.get("bias"), use_embedding=self.get("use_embedding"),

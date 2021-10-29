@@ -21,3 +21,4 @@ use_embedding: False
 set_linear_bias: False
 linear_uniform: False
 linear_normal: True
+l1_lambda: 0.0
