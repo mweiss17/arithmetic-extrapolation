@@ -20,6 +20,12 @@ def get_acc(dataloader, model, use_ln, split):
     result_dict = {f"wa-{split}": word_acc, f"ca-{split}": char_acc, f"loss-{split}": loss.detach().item()}
     return result_dict
 
+def get_acc(pred, target):
+    for i in range(pred.shape[0]):
+        char_matches = torch.sum(pred.argmax(1) == target.argmax(1), dtype=torch.float32)
+        char_acc = (torch.div(char_matches, pred.shape[0]) * 100).detach().numpy().item()
+    result_dict = {f"ca": char_acc}
+    return result_dict
 #
 # def convert_preds_to_words(preds, x_lens, ix_to_char):
 #     words = []

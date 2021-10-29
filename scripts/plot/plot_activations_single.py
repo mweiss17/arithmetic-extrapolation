@@ -24,7 +24,7 @@ base_dir = "experiments"
 exp_dir = "ln-1"
 
 path = os.path.join(base_dir, exp_dir)
-model_path = os.path.join(path, "Weights", "model-25000.pt")
+model_path = os.path.join(path, "Weights", "model-1000.pt")
 plot_dir = os.path.join(path, "Plots")
 
 if not os.path.isdir(plot_dir):
@@ -38,10 +38,10 @@ device = torch.device(args.device)
 
 # create datasets and dataloaders
 batch_size = 1
-hidden_size = 10
+hidden_size = 100
 input_size = 1
 
-min_n = 300
+min_n = 400
 test_dataset = anbn(min_n=min_n, max_n=min_n+1)
 
 dataloader = DataLoader(test_dataset, batch_size=1, shuffle=True, collate_fn=pad_collate)
@@ -60,6 +60,9 @@ for x, y, x_lens, y_lens in dataloader:
 if len(hs.shape) == 3:
     hs = hs.squeeze(1)
     cs = cs.squeeze(1)
+
+from arithmetic_extrapolation.evaluation import get_acc
+print(get_acc(preds.squeeze(0), y.squeeze(0)))
 plt.plot(hs)
 plt.title(f"Hidden state")
 plt.savefig(os.path.join(plot_dir, f"hs_{min_n}.png"))
