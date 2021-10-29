@@ -4,6 +4,22 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pad_sequence, pack_padded_sequence
 from torch.autograd import Variable
 import torch.nn.functional as F
+import math
+from typing import Tuple, Union, Callable, Optional
+import copy
+import torch
+from torch import nn, Tensor
+import torch.nn.functional as F
+from torch.nn import TransformerEncoder, TransformerEncoderLayer  # , TransformerDecoderLayer
+from torch.nn import functional as F
+from torch.nn import Module
+from torch.nn import MultiheadAttention
+from torch.nn import ModuleList
+from torch.nn.init import xavier_uniform_
+from torch.nn import Dropout
+from torch.nn import Linear
+from torch.nn import LayerNorm
+
 
 class LSTM(nn.Module):
     def __init__(self, input_size, hidden_size, batch_size, vocab_size, device, bias=True, use_embedding=False,
@@ -22,7 +38,7 @@ class LSTM(nn.Module):
         self.bias = bias
         self.criterion = torch.nn.CrossEntropyLoss(ignore_index=self.target_pad_idx)
 
-        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.lstm = nn.LSTM(input_size, hidden_size, batch_first=False)
 
         self.linear = nn.Linear(hidden_size, self.vocab_size)
         if self.set_linear_bias:
@@ -41,10 +57,8 @@ class LSTM(nn.Module):
     def init_hidden(self):
         h_0 = torch.zeros((1, self.batch_size, self.hidden_size))
         c_0 = torch.zeros((1, self.batch_size, self.hidden_size))
-        h_0 = h_0.to(self.device)
-        c_0 = c_0.to(self.device)
-        h_0 = Variable(h_0)
-        c_0 = Variable(c_0)
+        torch.nn.init.xavier_normal_(h_0, gain=1.0)
+        torch.nn.init.xavier_normal_(c_0, gain=1.0)
         return (h_0, c_0)
 
     def forward_save(self, x):
@@ -74,38 +88,29 @@ class LSTM(nn.Module):
         x = x.permute(1, 0, 3, 2)
 
         # (batch_size, seq_len, nb_lstm_units) -> (batch_size * seq_len, nb_lstm_units)
-        x = x.contiguous()
-        x = x.view(-1, x.shape[2])
+        # x = x.contiguous()
+        # x = x.view(-1, x.shape[2])
 
         # run through linear layer
         x = self.linear(x)
 
-        # reshape to: (batch_size, seq_len, vocab_size)
-        x = x.view(batch_size, seq_len, self.vocab_size)
+        # # reshape to: (batch_size, seq_len, vocab_size)
+        # x = x.view(batch_size, seq_len, self.vocab_size)
         return x, cs, hs
 
     def forward(self, x, x_lens):
         self.hidden = self.init_hidden()
-        batch_size, seq_len = x.size()
         if self.use_embedding:
             x = self.embedding(x)
         x = x.unsqueeze(2).float()
-
-        # (batch_size, seq_len, embedding_dim) -> (batch_size, seq_len, nb_lstm_units)
+        breakpoint()
         # pack_padded_sequence so that padded items in the sequence won't be shown to the LSTM
-        x_packed = torch.nn.utils.rnn.pack_padded_sequence(x, x_lens, enforce_sorted=False, batch_first=True)
+        x_packed = torch.nn.utils.rnn.pack_padded_sequence(x, x_lens, enforce_sorted=False, batch_first=False)
         x, self.hidden = self.lstm(x_packed, self.hidden)
         x, _ = torch.nn.utils.rnn.pad_packed_sequence(x, batch_first=True)
 
-        # (batch_size, seq_len, nb_lstm_units) -> (batch_size * seq_len, nb_lstm_units)
-        x = x.contiguous()
-        x = x.view(-1, x.shape[2])
-
-        # run through linear layer
         x = self.linear(x)
 
-        # reshape to: (batch_size, seq_len, vocab_size)
-        x = x.view(batch_size, seq_len, self.vocab_size)
         return x
 
     def compute_loss(self, preds, targets):
@@ -162,14 +167,17 @@ class LayerNormLSTM(nn.Module):
 
         if self.linear_normal:
             torch.nn.init.xavier_normal_(self.linear._parameters['weight'], gain=1.0)
-        self.hiddencell = LayerNormLSTMCell(input_size=input_size, hidden_size=hidden_size, bias=bias)
+        self.hiddencell = torch.nn.LSTMCell(input_size=input_size, hidden_size=hidden_size, bias=bias)
+        self.hiddencell2 = torch.nn.LSTMCell(input_size=hidden_size, hidden_size=hidden_size, bias=bias)
 
+        # self.hiddencell = LayerNormLSTMCell(input_size=input_size, hidden_size=hidden_size, bias=bias)
+        # self.hiddencell2 = LayerNormLSTMCell(input_size=hidden_size, hidden_size=hidden_size, bias=bias)
 
     def init_hidden(self):
         h_0 = torch.zeros((self.batch_size, self.hidden_size))
         c_0 = torch.zeros((self.batch_size, self.hidden_size))
-        h_0 = Variable(h_0)
-        c_0 = Variable(c_0)
+        torch.nn.init.xavier_normal_(h_0, gain=1.0)
+        torch.nn.init.xavier_normal_(c_0, gain=1.0)
         return (h_0, c_0)
 
     def compute_loss(self, preds, targets, l1_lambda=0.001):
@@ -186,7 +194,7 @@ class LayerNormLSTM(nn.Module):
             input = self.embedding(input.long())
             input = input.squeeze(2)
 
-        h0, c0 = self.init_hidden()
+        h1, c1 = self.init_hidden()
         if len(input.shape) == 2:
             input = input.unsqueeze(-1)
 
@@ -198,15 +206,15 @@ class LayerNormLSTM(nn.Module):
 
         for t, x in enumerate(input):
             if t == 0:
-                ht[t], ct[t] = self.hiddencell(x, (h0, c0))
+                ht[t], ct[t] = self.hiddencell(x, (h1, c1))
             else:
                 ht[t], ct[t] = self.hiddencell(x, (ht[t-1], ct[t-1]))
 
         y = torch.stack(ht, dim=0)
 
         # run through linear layer
-        y = self.linear(y.transpose(0, 1))
-
+        y = self.linear(y)
+        y = y.transpose(0, 1)
         # reshape to: (batch_size, seq_len, vocab_size)
 
         y = y.view(batch_size, seq_len, self.vocab_size)
@@ -217,7 +225,9 @@ class LayerNormLSTM(nn.Module):
             input = self.embedding(input.long())
             input = input.squeeze(2)
 
-        h0, c0 = self.init_hidden()
+        h1, c1 = self.init_hidden()
+        h2, c2 = self.init_hidden()
+
         if len(input.shape) == 2:
             input = input.unsqueeze(-1)
         input = input.transpose(0, 1)
@@ -228,40 +238,163 @@ class LayerNormLSTM(nn.Module):
 
         for t, x in enumerate(input):
             if t == 0:
-                ht[t], ct[t] = self.hiddencell(x, (h0, c0))
+                ht[t], ct[t] = self.hiddencell(x, (h1, c1))
             else:
                 ht[t], ct[t] = self.hiddencell(x, (ht[t-1], ct[t-1]))
-        hs = torch.stack(ht, dim=0).detach().numpy()
-        cs = torch.stack(ct, dim=0).detach().numpy()
-        y = torch.stack(ht, dim=0)
+        hs1 = torch.stack(ht, dim=0).detach().numpy()
+        cs1 = torch.stack(ct, dim=0).detach().numpy()
+        y = torch.stack(ht2, dim=0)
 
         # run through linear layer
-        y = self.linear(y.transpose(0, 1))
+        y = self.linear(y)
+
+        # reshape to: (batch_size, seq_len, vocab_size)
+        y = y.view(batch_size, seq_len, self.vocab_size)
+        return y, cs1, hs1
+
+class MultiLayerNormLSTM(nn.Module):
+
+    def __init__(self, input_size, hidden_size, batch_size, vocab_size=None, num_layers=1, bias=True, use_embedding=False, linear_normal=False):
+        super().__init__()
+        self.input_size = input_size
+        self.batch_size = batch_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.target_pad_idx = 3
+        self.vocab_size = vocab_size
+        self.linear_normal = linear_normal
+        self.criterion = torch.nn.CrossEntropyLoss(ignore_index=self.target_pad_idx)
+        self.linear = nn.Linear(hidden_size, self.vocab_size)
+        self.use_embedding = use_embedding
+
+        self.embedding = nn.Embedding(
+            num_embeddings=self.vocab_size,
+            embedding_dim=self.input_size,
+            padding_idx=3
+        )
+
+        if self.linear_normal:
+            torch.nn.init.xavier_normal_(self.linear._parameters['weight'], gain=1.0)
+        # self.hiddencell = torch.nn.LSTMCell(input_size=input_size, hidden_size=hidden_size, bias=bias)
+        # self.hiddencell2 = torch.nn.LSTMCell(input_size=hidden_size, hidden_size=hidden_size, bias=bias)
+        #
+        self.hiddencell = LayerNormLSTMCell(input_size=input_size, hidden_size=hidden_size, bias=bias)
+        self.hiddencell2 = LayerNormLSTMCell(input_size=hidden_size, hidden_size=hidden_size, bias=bias)
+
+    def init_hidden(self):
+        h_0 = torch.zeros((self.batch_size, self.hidden_size))
+        c_0 = torch.zeros((self.batch_size, self.hidden_size))
+        torch.nn.init.xavier_normal_(h_0, gain=1.0)
+        torch.nn.init.xavier_normal_(c_0, gain=1.0)
+        return (h_0, c_0)
+
+    def compute_loss(self, preds, targets, l1_lambda=0.001):
+        targets = targets.view(-1, self.vocab_size)
+        preds = preds.view(-1, self.vocab_size)
+        loss = self.criterion(preds, targets.argmax(dim=1))
+        # l1_norm = torch.sum(torch.tensor([torch.sum(torch.abs(p)) for p in self.parameters()])) / self.hidden_size
+        # loss = loss + l1_lambda * l1_norm
+
+        return loss
+
+    def forward(self, input):
+        if self.use_embedding:
+            input = self.embedding(input.long())
+            input = input.squeeze(2)
+
+        h1, c1 = self.init_hidden()
+        h2, c2 = self.init_hidden()
+        if len(input.shape) == 2:
+            input = input.unsqueeze(-1)
+
+        input = input.transpose(0, 1)
+        seq_len, batch_size, hidden_size = input.size()  # supports TxNxH only
+
+        ht = [None,] * seq_len
+        ct = [None,] * seq_len
+        ht2 = [None,] * seq_len
+        ct2 = [None,] * seq_len
+
+        for t, x in enumerate(input):
+            if t == 0:
+                ht[t], ct[t] = self.hiddencell(x, (h1, c1))
+                ht2[t], ct2[t] = self.hiddencell2(ht[t], (h2, c2))
+            else:
+                ht[t], ct[t] = self.hiddencell(x, (ht[t-1], ct[t-1]))
+                ht2[t], ct2[t] = self.hiddencell2(ht[t], (ht2[t-1], ht2[t-1]))
+
+        y = torch.stack(ht2, dim=0)
+
+        # run through linear layer
+        y = self.linear(y)
+        y = y.transpose(0, 1).contiguous()
+
+        # reshape to: (batch_size, seq_len, vocab_size)
+        y = y.view(batch_size, seq_len, self.vocab_size)
+        return y
+
+    def forward_save(self, input):
+        if self.use_embedding:
+            input = self.embedding(input.long())
+            input = input.squeeze(2)
+
+        h1, c1 = self.init_hidden()
+        h2, c2 = self.init_hidden()
+
+        if len(input.shape) == 2:
+            input = input.unsqueeze(-1)
+        input = input.transpose(0, 1)
+        seq_len, batch_size, hidden_size = input.size()  # supports TxNxH only
+
+        ht = [None,] * seq_len
+        ct = [None,] * seq_len
+        ht2 = [None,] * seq_len
+        ct2 = [None,] * seq_len
+
+        for t, x in enumerate(input):
+            if t == 0:
+                ht[t], ct[t] = self.hiddencell(x, (h1, c1))
+                ht2[t], ct2[t] = self.hiddencell2(ht[t], (h2, c2))
+            else:
+                ht[t], ct[t] = self.hiddencell(x, (ht[t-1], ct[t-1]))
+                ht2[t], ct2[t] = self.hiddencell2(ht[t], (ht2[t-1], ht2[t-1]))
+        hs1 = torch.stack(ht, dim=0).detach().numpy()
+        cs1 = torch.stack(ct, dim=0).detach().numpy()
+        hs2 = torch.stack(ht2, dim=0).detach().numpy()
+        cs2 = torch.stack(ct2, dim=0).detach().numpy()
+        y = torch.stack(ht2, dim=0)
+
+        # run through linear layer
+        y = self.linear(y)
 
         # reshape to: (batch_size, seq_len, vocab_size)
 
         y = y.view(batch_size, seq_len, self.vocab_size)
-        return y, cs, hs
+        return y, cs1, hs1, cs2, hs2
 
 
 class Transformer(nn.Module):
 
-    def __init__(self, ntoken: int, d_model: int, nhead: int, d_feedforward: int,
-                 nlayers: int, dropout: float = 0.5, max_len: int = 5, **kwargs):
+    def __init__(self, vocab_size: int, d_model: int, nhead: int, d_feedforward: int,
+                 nlayers: int, dropout: float = 0.5, max_len: int = 5, norm_first=False, use_norm=False, **kwargs):
         super().__init__()
+        self.vocab_size = vocab_size
         self.model_type = 'TransformerDecoder'
+        self.target_pad_idx = 3
         self.pos_encoder = PositionalEncoding(d_model, dropout, max_len=max_len)
 
-        transformer_layers = TransformerEncoderLayer(d_model, nhead, dim_feedforward=d_feedforward, dropout=dropout,
-                                                     **kwargs)
-        transformer_norm = LayerNorm(d_model, eps=1e-5, **kwargs)
+        transformer_layers = TransformerEncoderLayer(d_model, nhead, dim_feedforward=d_feedforward, dropout=dropout, norm_first=norm_first, **kwargs)
+        if use_norm:
+            transformer_norm = LayerNorm(d_model, eps=1e-5, **kwargs)
+        else:
+            transformer_norm = None
         self.transformer_block = TransformerEncoder(transformer_layers, nlayers, transformer_norm)
 
-        self.encoder = nn.Embedding(ntoken, d_model)
+        self.encoder = nn.Embedding(vocab_size, d_model)
         self.d_model = d_model
-        self.decoder = nn.Linear(d_model, ntoken)
+        self.decoder = nn.Linear(d_model, vocab_size)
         self.max_len = max_len
-        self.criterion = nn.CrossEntropyLoss()
+        self.criterion = nn.CrossEntropyLoss(ignore_index=self.target_pad_idx)
 
         self._reset_parameters()
         self.init_weights()
@@ -287,26 +420,28 @@ class Transformer(nn.Module):
         self.decoder.bias.data.zero_()
         self.decoder.weight.data.uniform_(-initrange, initrange)
 
-    def forward(self, src: Tensor) -> Tensor:
+    def forward(self, x: Tensor, x_lens=None) -> Tensor:
         """
         Args:
             src: Tensor, shape [seq_len, batch_size]
             src_mask: Tensor, shape [seq_len, seq_len]
         Returns:
-            output Tensor of shape [seq_len, batch_size, ntoken]
+            output Tensor of shape [seq_len, batch_size, vocab_size]
         """
-        src = self.encoder(src) * math.sqrt(self.d_model)
-        src = self.pos_encoder(src)
+        x = x.transpose(0, 1)
+        src = self.encoder(x) * math.sqrt(self.d_model)
+        # src = self.pos_encoder(src)
+        self.input_attn_mask = self.generate_square_subsequent_mask(src.shape[0])
         output = self.transformer_block(src, self.input_attn_mask)
-
         output = self.decoder(output)
-        pred = output[-1]  # torch.softmax(output[-1], 1)
-        return pred
+        # pred = output[-1]  # torch.softmax(output[-1], 1)
+        return output.transpose(0, 1).contiguous()
 
-    def loss_fn(self, pred, target):
-        loss = self.criterion(pred, target)
+    def compute_loss(self, preds, targets):
+        targets = targets.view(-1, self.vocab_size)
+        preds = preds.view(-1, self.vocab_size)
+        loss = self.criterion(preds, targets.argmax(dim=1))
         return loss
-
 
 class PositionalEncoding(nn.Module):
 

@@ -26,7 +26,8 @@ setuptools.setup(
         'numpy',
         'google-cloud',
         'wandb',
-        "submitit",
+        'submitit',
+        'matplotlib'
         'speedrun @ git+https://git@github.com/inferno-pytorch/speedrun@dev#egg=speedrun',
         ],
 )
